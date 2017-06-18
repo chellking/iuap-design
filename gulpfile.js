@@ -9,89 +9,20 @@ var uglify = require('gulp-uglify');
 var rename = require('gulp-rename');
 var minifycss = require('gulp-minify-css');
 var sourcemaps = require('gulp-sourcemaps');
-var babel = require('gulp-babel');
-var copy = require('gulp-copy');
-var clean = require('gulp-clean');
+var base64 = require('gulp-base64');
 var util = require('gulp-util');
+var stripCssComments = require('gulp-strip-css-comments');
 
-/**
- * SASS 源文件索引
- * @type {Array}
- */
-var UISassSrcPath = [
-  'scss/u.scss',
-  'scss/u-extend.scss',
-  // 'vendor/font-awesome/css/font-awesome.css',
-  // 'vendor/font-awesome/css/font-awesome.min.css'
-]
-
-var UISrcPath = [
-  // 基础依赖
-  // 'js/core/core.js',
-  'js/core/BaseComponent.js',
-  'js/ripple.js',
-  'js/ui.button.js',
-  'js/layout.nav.js',
-  'js/ui.navmenu.js',
-  'js/ui.textfield.js',
-  'js/ui.menu.js',
-  'js/layout.md.js',
-  'js/ui.tabs.js',
-  'js/ui.checkbox.js',
-  'js/ui.radio.js',
-  'js/ui.switch.js',
-  'js/ui.loading.js',
-  'js/ui.loader.js',
-  'js/ui.progress.js',
-  'js/ui.message.js',
-  'js/messageDialog.js',
-  'js/confirmDialog.js',
-  'js/threeBtnDialog.js',
-  'js/dialog.js',
-  'js/combobox.js',
-  'js/ui.multilang.js',
-  'js/autocomplete.js',
-  'js/datetimepicker.js',
-  'js/time.js',
-  'js/yearmonth.js',
-  'js/year.js',
-  'js/month.js',
-  'js/clockpicker.js',
-  'js/ui.combo.js',
-  'js/data-table.js',
-  'js/ui.pagination.js',
-  'js/tooltip.js',
-  'js/rating.js',
-  'js/validate.js',
-  'js/ui.refer.js',
-  'js/slidePanel.js',
-  'js/core/end.js',
-  'js/mobiscroll.2.13.2.js',
-  // core
-  'js/core/core.js',
-  'js/core/event.js',
-  'js/utilities/jsExtensions.js',
-  'js/core/ajax.js',
-  'js/core/base.js',
-  'js/core/compMgr.js',
-  'js/utilities/i18n.js',
-  'js/utilities/rsautils.js',
-  'js/utilities/masker.js',
-  'js/utilities/formater.js',
-  'js/utilities/dateUtils.js',
-  'js/utilities/dataRender.js',
-  'js/utilities/hotKeys.js'  
-]
-
+var version = require('./version.js');
 var AUTOPREFIXER_BROWSERS = [
-  'ie >= 11',
-  'edge >= 20',
-  'ff >= 44',
-  'chrome >= 48',
-  'safari >= 8',
-  'opera >= 35',
-  'ios >= 8'
-]
+    'ie >= 11',
+    'edge >= 20',
+    'ff >= 44',
+    'chrome >= 48',
+    'safari >= 8',
+    'opera >= 35',
+    'ios >= 8'
+];
 
 /**
  * 公共错误处理函数
@@ -99,96 +30,19 @@ var AUTOPREFIXER_BROWSERS = [
  * @return {[type]}     [description]
  */
 var errHandle = function ( err ) {
-  // 报错文件名
-  var fileName = err.fileName;
-  // 报错类型
-  var name = err.name;
-  // 报错信息
-  var message = err.message;
-  // 出错代码位置
-  var loc = err.loc;
+    // 报错文件名
+    var fileName = err.fileName;
+    // 报错类型
+    var name = err.name;
+    // 报错信息
+    var message = err.message;
 
-  var logInfo = '报错文件：' + fileName + '报错类型：' + name + '出错代码位置：' + loc.line + ',' + loc.column;
+    var logInfo = '报错文件：' + fileName + '报错类型：' + name + '出错代码位置：' + err.lineNumber + ',' + err.column;
 
-  util.log( logInfo );
+    util.log( err );
 
-  this.end();
-}
-
-/**
- * 编译 SASS 文件，并自动添加浏览器前缀
- * @param  {[type]} 'sass-ui' [description]
- * @param  {[type]} (         [description]
- * @return {[type]}           [description]
- */
-gulp.task('sass-ui', function () {
-  return gulp.src( UISassSrcPath )
-    .pipe(sass.sync().on('error', sass.logError))
-    .pipe(autoprefixer(AUTOPREFIXER_BROWSERS))
-    .pipe(gulp.dest('dist/css'));
-});
-
-gulp.task('sass-ui-dist', function () {
-
-  gulp.src('scss/u.scss')
-    .pipe(sass.sync().on('error', sass.logError))
-    .pipe(autoprefixer(AUTOPREFIXER_BROWSERS))
-    .pipe(minifycss())
-    .pipe(rename('u.min.css'))
-    .pipe(gulp.dest('dist/css'));
-
-  gulp.src('scss/u-extend.scss')
-    .pipe(sass.sync().on('error', sass.logError))
-    .pipe(autoprefixer(AUTOPREFIXER_BROWSERS))
-    .pipe(minifycss())
-    .pipe(rename('u-extend.min.css'))
-    .pipe(gulp.dest('dist/css'));
-
-});
-
-
-/**
- * 编译并合并 UI 相关的 JS 文件
- * 用于开发环境，并支持 ES6/7 语法，可产出map文件
- * @param  {[type]} "es-ui" [description]
- * @param  {[type]} (       [description]
- * @return {[type]}         [description]
- */
-gulp.task("es-ui", function () {
-  return gulp.src( UISrcPath )
-    .pipe(babel())
-    .on('error', errHandle)
-    .pipe(concat("u-ui.js"))
-    .pipe(gulp.dest("dist/js"));
-});
-
-/**
- * 编译并合并压缩 UI 相关的 JS 文件，用于生产环境
- * @param  {[type]} 'ui-dist' [description]
- * @param  {[type]} function( [description]
- * @return {[type]}           [description]
- */
-gulp.task('ui-js-dist', function(){
-    return gulp.src( UISrcPath )
-      .pipe(babel())
-      .pipe(concat("u-ui.min.js"))
-      .pipe(uglify())
-      .pipe(gulp.dest('dist/js'))
-});
-
-gulp.task("polyfill", function () {
-  return gulp.src('vendor/polyfill/*.js')
-    .pipe(concat("u-polyfill.js"))
-    .on('error', errHandle)
-    .pipe(gulp.dest("dist/js"));
-});
-
-gulp.task("polyfill-dist", function () {
-  return gulp.src('vendor/polyfill/*.js')
-    .pipe(concat("u-polyfill.min.js"))
-    .pipe(uglify())
-    .pipe(gulp.dest("dist/js"));
-});
+    this.end();
+};
 
 /**
  * 搬运图标字体，直接复制拷贝
@@ -196,26 +50,31 @@ gulp.task("polyfill-dist", function () {
  * @param  {[type]} (      [description]
  * @return {[type]}        [description]
  */
-gulp.task('font', function () {
-  return gulp.src('./vendor/font-awesome/*/*')
-    .pipe(rename(function(path){
-      path.dirname += '';
-    }))
-    .pipe(gulp.dest('./dist/fonts/font-awesome'));
+
+// gulp.task('font', function () {
+//   gulp.src('./vendor/font-awesome/**')
+//       .pipe(gulp.dest('./dist/fonts/font-awesome'));
+//   return gulp.src('./fonts/**')
+//          .pipe(gulp.dest('./dist/fonts'));
+// });
+
+gulp.task('fontcss', function() {
+    gulp.src('./vendor/font-awesome/css/**')
+        .pipe(gulp.dest('./dist/css'))
 });
+gulp.task('fontfile', function() {
+    gulp.src(['./fonts/*.*','./vendor/font-awesome/fonts/*.*'])
+        .pipe(gulp.dest('./dist/fonts'));
+
+})
 
 /**
- * 搬运图片，直接复制拷贝
- * @param  {[type]} 'font' [description]
- * @param  {[type]} (      [description]
- * @return {[type]}        [description]
+ * 复制图片文件
+ * @return {[type]}   [description]
  */
 gulp.task('image', function () {
-  return gulp.src('./vendor/images/**')
-    .pipe(rename(function(path){
-      path.dirname += '';
-    }))
-    .pipe(gulp.dest('./dist/images/'));
+    return gulp.src('./vendor/images/**')
+        .pipe(gulp.dest('./dist/images'));
 });
 
 /**
@@ -249,5 +108,116 @@ gulp.task('clean', function () {
     .on('error', errHandle);
 });
 
-gulp.task('dev', ['font', 'image', 'sass-ui', 'es-ui', 'polyfill', 'serve'])
-gulp.task('default', ['font', 'image', 'sass-ui', 'sass-ui-dist', 'es-ui', 'polyfill', 'ui-js-dist', 'sass-ui', 'polyfill-dist'])
+/**
+ * 插件CSS 构建
+ * 暂时不输出
+ */
+gulp.task('vsass', function(){
+    gulp.src('./scss/**/*')
+        .pipe(gulp.dest('./v1/scss/bundle'));
+});
+gulp.task('vcss', ['vsass'], function(){
+    gulp.src('./v1/scss/*.scss')
+        .pipe(sass())
+        .pipe(gulp.dest('./v1/lib/css'))
+        .pipe(sourcemaps.init())
+        .pipe(minifycss())
+        .pipe(rename({
+            suffix:'.min'
+        }))
+        .pipe(sourcemaps.write('./'))
+        .pipe(gulp.dest('./v1/lib/css'));
+});
+
+gulp.task('custom',function(){
+    return gulp.src('./scss/ui/*.scss')
+        .pipe(sass())
+        .pipe(gulp.dest('./custom/'))
+})
+
+// gulp.task('dev', ['image', 'font', 'sass-ui', 'es-ui', 'polyfill', 'serve'])
+
+/**
+ * [执行重构后dist/css目录输出]
+ * 不产出map文件
+ */
+
+gulp.task('buildcorecss',function(){
+    gulp.src('./scss/core.scss')
+        .pipe(sass())
+        .pipe(base64())
+        .pipe(autoprefixer(AUTOPREFIXER_BROWSERS))
+        .pipe(stripCssComments())
+        .pipe(rename('u.core.css'))
+        .pipe(gulp.dest('./dist/css'))
+        .pipe(minifycss())
+        .pipe(rename({
+            suffix:'.min'
+        }))
+        .pipe(gulp.dest('./dist/css'));
+});
+// 输出整体css文件dist/css/neoui.css
+gulp.task('buildcss', ['buildcorecss'], function(){
+    gulp.src('./scss/neoui.scss')
+        .pipe(sass())
+        .pipe(base64())
+        .pipe(autoprefixer(AUTOPREFIXER_BROWSERS))
+        .pipe(stripCssComments())
+        .pipe(rename('u.css'))
+        .pipe(gulp.dest('./dist/css'))
+        .pipe(minifycss())
+        .pipe(rename({
+            suffix:'.min'
+        }))
+        .pipe(gulp.dest('./dist/css'));
+});
+// 逐一输出单个插件dist/css/plugins/
+gulp.task('buildcssplugin',function(){
+    gulp.src('./scss/ui/*.*')
+        .pipe(sass())
+        .pipe(gulp.dest('./dist/css/plugin'))
+        .pipe(minifycss())
+        .pipe(rename({
+            suffix:'.min'
+        }))
+        .pipe(gulp.dest('./dist/css/plugin'));
+});
+gulp.task('distbuild', ['buildcss','buildcssplugin']);
+
+/**
+ * 输出合并后的:
+ * neoui.css
+ * neoui.min.css
+ * neoui.js
+ * neoui.min.js
+ * neoui.js合并包含第三方插件
+ * 添加头部信息
+ */
+gulp.task('buildjs', function(){
+    gulp.src(['vendor/ui/*.js','dist/js/neoui.js'])
+        .pipe(concat('neoui.js'))
+        .pipe(gulp.dest('./dist/js'))
+        .pipe(uglify())
+        .pipe(rename('neoui.min.js'))
+        .pipe(gulp.dest('./dist/js'));
+
+});
+gulp.task('neo',['buildcss', 'buildjs'],function(){
+    version.init([
+        './dist/js/neoui.js',
+        './dist/js/neoui.min.js'
+    ]);
+});
+gulp.task('neoui', ['neo'], function(){
+    version.init([
+        './dist/css/u.css',
+        './dist/css/u.min.css'
+    ]);
+});
+
+gulp.task('dist', ['buildcss','buildjs', 'image','fontcss','fontfile'], function(){
+    version.init([
+        './dist/css/u.css',
+        './dist/css/u.min.css'
+    ]);
+});
